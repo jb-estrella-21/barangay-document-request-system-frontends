@@ -167,7 +167,10 @@ jobs:
           export PHASE2_TEST_ADMIN_USERNAME=phase3-ci-admin
           export PHASE2_TEST_ADMIN_PASSWORD="$(node -e "process.stdout.write(require('node:crypto').randomBytes(24).toString('base64url'))")"
           echo "::add-mask::$PHASE2_TEST_ADMIN_PASSWORD"
-          python3 integration-e2e/scripts/bootstrap-admin.py
+          bootstrap_encryption_key="$(node -e "process.stdout.write(require('node:crypto').randomBytes(32).toString('base64'))")"
+          echo "::add-mask::$bootstrap_encryption_key"
+          IDEMPOTENCY_ENCRYPTION_KEY="$bootstrap_encryption_key" python3 integration-e2e/scripts/bootstrap-admin.py
+          unset bootstrap_encryption_key
           cd integration-e2e
           PHASE3_BROWSER=chromium npm test
           PHASE3_BROWSER=firefox npm run test:smoke
