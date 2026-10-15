@@ -152,7 +152,7 @@ jobs:
         with:
           repository: jb-estrella-21/barangay-document-request-system-backend
           # Reviewed local backend HEAD. Update this SHA intentionally after API compatibility review.
-          ref: c4d4a4766febc68148741ea16776faf2df9e2b44
+          ref: 92def4a6cb33186718ff9e4a6ef82712666887f2
           path: backend
           token: ${{ secrets.BACKEND_READ_TOKEN || github.token }}
           persist-credentials: false
