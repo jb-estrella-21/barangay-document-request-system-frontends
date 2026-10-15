@@ -82,6 +82,41 @@ jobs:
         working-directory: integration-e2e
         run: npm run test:ui
 
+  pages-proxy:
+    name: Local Pages proxy packaging and behavior
+    needs: frontend
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Check out frontend workspace
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+          cache-dependency-path: |
+            frontend-website/package-lock.json
+            frontend-admin/package-lock.json
+            integration-e2e/package-lock.json
+
+      - name: Install app and proxy-test dependencies
+        run: |
+          (cd frontend-website && npm ci)
+          (cd frontend-admin && npm ci)
+          (cd integration-e2e && npm ci)
+
+      - name: Install Chromium for local Pages proxy tests
+        working-directory: integration-e2e
+        run: npx playwright install --with-deps chromium
+
+      - name: Build and test both Pages projects against a mocked API
+        working-directory: integration-e2e
+        run: npm run test:proxy
+
   integration:
     name: Isolated API and browser integration
     needs: frontend

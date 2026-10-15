@@ -5,11 +5,13 @@
     "test": "playwright test",
     "test:smoke": "playwright test --grep @cross-browser-smoke",
     "test:ui": "playwright test --config=playwright.ui.config.cjs",
+    "test:proxy": "node scripts/build-pages.cjs",
     "install:browser": "playwright install chromium",
     "install:browsers": "playwright install chromium firefox webkit"
   },
   "devDependencies": {
     "@axe-core/playwright": "^4.14.0",
-    "@playwright/test": "^1.64.1"
+    "@playwright/test": "^1.64.1",
+    "wrangler": "^4.151.0"
   }
 }

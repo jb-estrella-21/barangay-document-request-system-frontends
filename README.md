@@ -1,5 +1,7 @@
 # Barangay document request frontends
 
+Phase 5B Pages/Render/Neon deployment preparation and limitations are documented in [docs/phase5b-deployment-preparation.md](docs/phase5b-deployment-preparation.md). No cloud resources have been created and nothing has been deployed.
+
 This workspace contains two independent React applications for the existing Barangay Document Request API:
 
 - `frontend-website` is the public resident experience.

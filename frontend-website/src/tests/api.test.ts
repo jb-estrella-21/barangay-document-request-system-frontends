@@ -44,7 +44,7 @@ describe('public API errors', () => {
       init?.signal?.addEventListener('abort', () => reject(new DOMException('aborted', 'AbortError')));
     })));
     const pending = publicApi('/requests').catch((error: unknown) => error);
-    await vi.advanceTimersByTimeAsync(20_000);
+    await vi.advanceTimersByTimeAsync(90_000);
     await expect(pending).resolves.toMatchObject({ kind: 'timeout', status: 0 });
   });
 });

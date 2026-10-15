@@ -37,7 +37,7 @@ export class ApiError extends Error {
 }
 
 const apiBase = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000/api/v1').replace(/\/$/, '');
-const REQUEST_TIMEOUT_MS = 20_000;
+const REQUEST_TIMEOUT_MS = 90_000;
 let csrfToken: string | null = null;
 export const setCsrfToken = (token: string | null) => { csrfToken = token; };
 
