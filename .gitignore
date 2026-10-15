@@ -1,0 +1,29 @@
+# Dependencies
+node_modules/
+
+# Production builds
+dist/
+coverage/
+
+# Environment variables
+.env
+.env.*
+!.env.example
+
+# Playwright artifacts
+playwright-report/
+test-results/
+blob-report/
+
+# Logs
+*.log
+
+# TypeScript cache
+*.tsbuildinfo
+
+# OS files
+.DS_Store
+
+# Editor files
+.vscode/
+.idea/
