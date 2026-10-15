@@ -1,4 +1,5 @@
 const path = require('node:path');
+const { spawnSync } = require('node:child_process');
 const { defineConfig } = require('@playwright/test');
 
 const repositoryRoot = path.resolve(__dirname, '..');
@@ -11,13 +12,27 @@ function configuredPort(value, fallback, name) {
   if (!Number.isInteger(port) || port < 1024 || port > 65535) throw new Error(`${name} must be an available unprivileged TCP port.`);
   return String(port);
 }
+function assertPortAvailable(port, name) {
+  // Probe by briefly binding a local socket, never by sending HTTP to a possibly unrelated service.
+  const probe = "const net=require('node:net');const server=net.createServer();server.once('error',()=>process.exit(1));server.listen({host:'127.0.0.1',port:Number(process.argv.at(-1)),exclusive:true},()=>server.close(()=>process.exit(0)));";
+  const result = spawnSync(process.execPath, ['-e', probe, port], { stdio: 'ignore', timeout: 3000 });
+  if (result.status !== 0) throw new Error(`${name} port ${port} is unavailable; choose a free port with the PHASE2_*_PORT variables.`);
+}
 const apiPort = configuredPort(process.env.PHASE2_API_PORT, '3000', 'PHASE2_API_PORT');
 const residentPort = configuredPort(process.env.PHASE2_RESIDENT_PORT, '5173', 'PHASE2_RESIDENT_PORT');
 const staffPort = configuredPort(process.env.PHASE2_STAFF_PORT, '5174', 'PHASE2_STAFF_PORT');
 if (new Set([apiPort, residentPort, staffPort]).size !== 3) throw new Error('The API and frontend test ports must be distinct.');
+// Playwright loads this config again inside workers after starting webServer processes.
+if (process.env.TEST_WORKER_INDEX === undefined) {
+  assertPortAvailable(apiPort, 'API');
+  assertPortAvailable(residentPort, 'Resident frontend');
+  assertPortAvailable(staffPort, 'Staff frontend');
+}
 const apiOrigin = `http://localhost:${apiPort}`;
 const residentOrigin = `http://localhost:${residentPort}`;
 const staffOrigin = `http://localhost:${staffPort}`;
+const browserName = process.env.PHASE3_BROWSER || 'chromium';
+if (!['chromium', 'firefox', 'webkit'].includes(browserName)) throw new Error('PHASE3_BROWSER must be chromium, firefox, or webkit.');
 
 if (!databaseUrl || !expectedDatabaseName || confirmation !== expectedDatabaseName) {
   throw new Error('Set PHASE2_TEST_DATABASE_URL, PHASE2_TEST_DATABASE_NAME, and PHASE2_CONFIRM_TEST_DATABASE for the disposable browser-test database.');
@@ -39,8 +54,11 @@ if (!process.env.PHASE2_TEST_ADMIN_USERNAME || !process.env.PHASE2_TEST_ADMIN_PA
 }
 
 const corsOrigins = `${residentOrigin},${staffOrigin}`;
+const inheritedChildEnv = { ...process.env };
+delete inheritedChildEnv.PHASE2_TEST_ADMIN_USERNAME;
+delete inheritedChildEnv.PHASE2_TEST_ADMIN_PASSWORD;
 const backendEnv = {
-  ...process.env,
+  ...inheritedChildEnv,
   NODE_ENV: 'development',
   PORT: apiPort,
   DATABASE_URL: databaseUrl,
@@ -64,7 +82,7 @@ module.exports = defineConfig({
   preserveOutput: 'never',
   outputDir: '/tmp/barangay-phase2-playwright-results',
   use: {
-    browserName: 'chromium',
+    browserName,
     headless: true,
     viewport: { width: 1365, height: 900 },
     trace: 'off',
@@ -87,7 +105,7 @@ module.exports = defineConfig({
       url: residentOrigin,
       timeout: 120_000,
       reuseExistingServer: false,
-      env: { ...process.env, VITE_API_BASE_URL: `${apiOrigin}/api/v1` },
+      env: { ...inheritedChildEnv, VITE_API_BASE_URL: `${apiOrigin}/api/v1` },
     },
     {
       cwd: path.join(repositoryRoot, 'frontend-admin'),
@@ -95,7 +113,7 @@ module.exports = defineConfig({
       url: staffOrigin,
       timeout: 120_000,
       reuseExistingServer: false,
-      env: { ...process.env, VITE_API_BASE_URL: `${apiOrigin}/api/v1` },
+      env: { ...inheritedChildEnv, VITE_API_BASE_URL: `${apiOrigin}/api/v1` },
     },
   ],
 });

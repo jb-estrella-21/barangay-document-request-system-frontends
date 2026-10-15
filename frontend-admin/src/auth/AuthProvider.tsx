@@ -1,23 +1,10 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
-import { ApiError, changePassword as changePasswordApi, getMe, login as loginApi, logout as logoutApi, setCsrfToken, type StaffSessionIdentity } from './api';
-
-export type AuthStatus = 'loading' | 'authenticated' | 'anonymous' | 'unavailable';
-type AuthValue = {
-  staff: StaffSessionIdentity | null;
-  status: AuthStatus;
-  restoreError: unknown;
-  logoutError: unknown;
-  signingOut: boolean;
-  retryRestore: () => Promise<void>;
-  signIn: (username: string, password: string) => Promise<void>;
-  signOut: () => Promise<void>;
-  changePassword: (current: string, next: string) => Promise<void>;
-};
-const AuthContext = createContext<AuthValue | null>(null);
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { ApiError, changePassword as changePasswordApi, getMe, login as loginApi, logout as logoutApi, setCsrfToken, type StaffSessionIdentity } from '../api';
+import { AuthContext } from './AuthContext';
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [staff, setStaff] = useState<StaffSessionIdentity | null>(null);
-  const [status, setStatus] = useState<AuthStatus>('loading');
+  const [status, setStatus] = useState<'loading' | 'authenticated' | 'anonymous' | 'unavailable'>('loading');
   const [restoreError, setRestoreError] = useState<unknown>(null);
   const [logoutError, setLogoutError] = useState<unknown>(null);
   const [signingOut, setSigningOut] = useState(false);
@@ -37,9 +24,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setCsrfToken(data.csrfToken);
       setStatus('authenticated');
     } catch (cause) {
-      if (cause instanceof ApiError && cause.status === 401) {
-        clearSession();
-      } else {
+      if (cause instanceof ApiError && cause.status === 401) clearSession();
+      else {
         setRestoreError(cause);
         setStatus('unavailable');
       }
@@ -79,9 +65,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       await logoutApi();
       clearSession();
     } catch (cause) {
-      if (cause instanceof ApiError && cause.status === 401) {
-        clearSession();
-      } else {
+      if (cause instanceof ApiError && cause.status === 401) clearSession();
+      else {
         setLogoutError(cause);
         try {
           const { data } = await getMe();
@@ -90,7 +75,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setStatus('authenticated');
         } catch (reconcileError) {
           if (reconcileError instanceof ApiError && reconcileError.status === 401) clearSession();
-          // An unavailable reconciliation preserves the existing staff view and CSRF token.
         }
       }
     } finally {
@@ -105,10 +89,4 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const value = useMemo(() => ({ staff, status, restoreError, logoutError, signingOut, retryRestore, signIn, signOut, changePassword: updatePassword }), [staff, status, restoreError, logoutError, signingOut, retryRestore, signIn, signOut, updatePassword]);
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
-}
-
-export function useAuth() {
-  const value = useContext(AuthContext);
-  if (!value) throw new Error('useAuth must be used inside AuthProvider');
-  return value;
 }

@@ -1,0 +1,173 @@
+name: Frontend and integration checks
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  frontend:
+    name: ${{ matrix.app }} checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        app: [frontend-website, frontend-admin]
+    steps:
+      - name: Check out frontend workspace
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+          cache-dependency-path: ${{ matrix.app }}/package-lock.json
+
+      - name: Install dependencies
+        working-directory: ${{ matrix.app }}
+        run: npm ci
+
+      - name: Test, typecheck, lint, and build
+        working-directory: ${{ matrix.app }}
+        run: |
+          npm test
+          npm run typecheck
+          npm run lint
+          npm run build
+
+  integration:
+    name: Isolated API and browser integration
+    needs: frontend
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    services:
+      postgres:
+        image: postgres:16.15
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_HOST_AUTH_METHOD: trust
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      API_TEST_DATABASE_NAME: barangay_phase3_api_test
+      API_TEST_DATABASE_URL: postgresql://postgres@127.0.0.1:5432/barangay_phase3_api_test?schema=public
+      BROWSER_TEST_DATABASE_NAME: barangay_phase3_browser_test
+      BROWSER_TEST_DATABASE_URL: postgresql://postgres@127.0.0.1:5432/barangay_phase3_browser_test?schema=public
+      POSTGRES_ADMIN_URL: postgresql://postgres@127.0.0.1:5432/postgres?schema=public
+    steps:
+      - name: Check out frontend workspace
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Check out the reviewed backend revision
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: jb-estrella-21/barangay-document-request-system-backend
+          # Reviewed local backend HEAD. Update this SHA intentionally after API compatibility review.
+          ref: c4d4a4766febc68148741ea16776faf2df9e2b44
+          path: backend
+          token: ${{ secrets.BACKEND_READ_TOKEN || github.token }}
+          persist-credentials: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .nvmrc
+
+      - name: Install backend, frontend, and browser-test dependencies
+        run: |
+          (cd backend && npm ci && npm run prisma:generate)
+          (cd frontend-website && npm ci)
+          (cd frontend-admin && npm ci)
+          (cd integration-e2e && npm ci)
+
+      - name: Run backend E2E safety tests before database mutation
+        working-directory: backend
+        env:
+          NODE_ENV: test
+          E2E_DATABASE_URL: ${{ env.API_TEST_DATABASE_URL }}
+          E2E_DATABASE_NAME: ${{ env.API_TEST_DATABASE_NAME }}
+          E2E_ALLOW_DATABASE_RESET: ${{ env.API_TEST_DATABASE_NAME }}
+          DATABASE_URL: ${{ env.POSTGRES_ADMIN_URL }}
+        run: npm run test:e2e:safety -- --runInBand
+
+      - name: Install isolated browser runtimes
+        working-directory: integration-e2e
+        run: npx playwright install --with-deps chromium firefox webkit
+
+      - name: Create and verify disposable API and browser databases
+        run: |
+          set -euo pipefail
+          psql "$POSTGRES_ADMIN_URL" -v ON_ERROR_STOP=1 -c "CREATE DATABASE $API_TEST_DATABASE_NAME"
+          psql "$POSTGRES_ADMIN_URL" -v ON_ERROR_STOP=1 -c "CREATE DATABASE $BROWSER_TEST_DATABASE_NAME"
+          actual_api_name="$(psql "$API_TEST_DATABASE_URL" -Atc 'SELECT current_database()')"
+          actual_browser_name="$(psql "$BROWSER_TEST_DATABASE_URL" -Atc 'SELECT current_database()')"
+          if [ "$actual_api_name" != "$API_TEST_DATABASE_NAME" ] || [ "$actual_browser_name" != "$BROWSER_TEST_DATABASE_NAME" ]; then
+            echo "Database identity check failed for a disposable test target." >&2
+            exit 1
+          fi
+
+      - name: Apply migrations to the disposable API test database
+        working-directory: backend
+        env:
+          DATABASE_URL: ${{ env.API_TEST_DATABASE_URL }}
+        run: npm run prisma:migrate:deploy
+
+      - name: Run backend E2E suite with exact reset gate
+        working-directory: backend
+        env:
+          NODE_ENV: test
+          E2E_DATABASE_URL: ${{ env.API_TEST_DATABASE_URL }}
+          E2E_DATABASE_NAME: ${{ env.API_TEST_DATABASE_NAME }}
+          E2E_ALLOW_DATABASE_RESET: ${{ env.API_TEST_DATABASE_NAME }}
+          DATABASE_URL: ${{ env.POSTGRES_ADMIN_URL }}
+        run: npm run test:e2e -- --runInBand
+
+      - name: Verify browser database identity and apply migrations
+        working-directory: backend
+        env:
+          DATABASE_URL: ${{ env.BROWSER_TEST_DATABASE_URL }}
+        run: |
+          set -euo pipefail
+          actual_name="$(psql "$DATABASE_URL" -Atc 'SELECT current_database()')"
+          if [ "$actual_name" != "$BROWSER_TEST_DATABASE_NAME" ]; then
+            echo "Browser database identity check failed; refusing migrations." >&2
+            exit 1
+          fi
+          npm run prisma:migrate:deploy
+
+      - name: Bootstrap disposable administrator and run Playwright
+        env:
+          DATABASE_URL: ${{ env.BROWSER_TEST_DATABASE_URL }}
+          PHASE2_BACKEND_DIR: backend
+          PHASE2_TEST_DATABASE_URL: ${{ env.BROWSER_TEST_DATABASE_URL }}
+          PHASE2_TEST_DATABASE_NAME: ${{ env.BROWSER_TEST_DATABASE_NAME }}
+          PHASE2_CONFIRM_TEST_DATABASE: ${{ env.BROWSER_TEST_DATABASE_NAME }}
+        run: |
+          set -euo pipefail
+          export PHASE2_TEST_ADMIN_USERNAME=phase3-ci-admin
+          export PHASE2_TEST_ADMIN_PASSWORD="$(node -e "process.stdout.write(require('node:crypto').randomBytes(24).toString('base64url'))")"
+          echo "::add-mask::$PHASE2_TEST_ADMIN_PASSWORD"
+          python3 integration-e2e/scripts/bootstrap-admin.py
+          cd integration-e2e
+          PHASE3_BROWSER=chromium npm test
+          PHASE3_BROWSER=firefox npm run test:smoke
+          PHASE3_BROWSER=webkit npm run test:smoke

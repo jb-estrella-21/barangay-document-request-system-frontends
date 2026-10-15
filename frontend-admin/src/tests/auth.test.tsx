@@ -4,7 +4,8 @@ import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { describe, expect, it, vi } from 'vitest';
 import { AppRoutes } from '../App';
-import { AuthProvider, useAuth } from '../auth';
+import { AuthProvider } from '../auth/AuthProvider';
+import { useAuth } from '../auth/useAuth';
 
 // GET /staff/auth/me returns the narrower StaffPrincipal shape, which has no isActive field.
 const processorSession = { staff: { id: 'staff-1', username: 'processor', role: 'PROCESSOR', mustChangePassword: false }, csrfToken: 'csrf-memory-only' };
