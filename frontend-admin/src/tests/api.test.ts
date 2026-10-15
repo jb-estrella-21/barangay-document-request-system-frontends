@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { ApiError, api, changePassword } from '../api';
+import { ApiError, api, changePassword, getQueue } from '../api';
 
 function problem(status: number, body: Record<string, unknown>, headers: Record<string, string> = {}) {
   return new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/problem+json', ...headers } });
@@ -47,5 +47,16 @@ describe('staff API errors', () => {
     const pending = api('/staff/summary').catch((error: unknown) => error);
     await vi.advanceTimersByTimeAsync(20_000);
     await expect(pending).resolves.toMatchObject({ kind: 'timeout', status: 0 });
+  });
+});
+
+describe('staff queue search requests', () => {
+  it('omits blank optional filters from the validated POST body and preserves false booleans', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({ data: [], nextCursor: null }), { status: 200, headers: { 'Content-Type': 'application/json' } }));
+    vi.stubGlobal('fetch', fetchMock);
+    await getQueue({ search: ' TEST ONLY resident ', status: '', documentTypeId: '', releaseDateFrom: '', releaseDateTo: '', overdue: false, limit: 25 });
+    const init = fetchMock.mock.calls[0][1] as RequestInit;
+    expect(String(fetchMock.mock.calls[0][0])).toContain('/staff/requests/search');
+    expect(JSON.parse(String(init.body))).toEqual({ overdue: false, limit: 25, search: 'TEST ONLY resident' });
   });
 });

@@ -6,7 +6,8 @@ import { describe, expect, it, vi } from 'vitest';
 import { AppRoutes } from '../App';
 import { AuthProvider, useAuth } from '../auth';
 
-const processorSession = { staff: { id: 'staff-1', username: 'processor', role: 'PROCESSOR', isActive: true, mustChangePassword: false }, csrfToken: 'csrf-memory-only' };
+// GET /staff/auth/me returns the narrower StaffPrincipal shape, which has no isActive field.
+const processorSession = { staff: { id: 'staff-1', username: 'processor', role: 'PROCESSOR', mustChangePassword: false }, csrfToken: 'csrf-memory-only' };
 
 function response(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), { status, headers: { 'Content-Type': status >= 400 ? 'application/problem+json' : 'application/json' } });

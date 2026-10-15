@@ -1,6 +1,7 @@
 export type Role = 'ADMINISTRATOR' | 'PROCESSOR';
 export type Status = 'SUBMITTED' | 'UNDER_REVIEW' | 'PROCESSING' | 'READY_FOR_PICKUP' | 'RELEASED' | 'REJECTED' | 'CANCELLED';
-export type Staff = { id: string; username: string; role: Role; isActive: boolean; mustChangePassword: boolean };
+export type StaffSessionIdentity = { id: string; username: string; role: Role; mustChangePassword: boolean };
+export type StaffAccount = StaffSessionIdentity & { isActive: boolean };
 export type FieldDefinition = { key: string; label: string; type: 'text' | 'date' | 'select'; required: boolean; options?: string[] };
 export type DocumentType = { id: string; slug: string; isActive: boolean; documentTypeVersionId: string; version: number; name: string; description: string; requirements: string[]; fields: FieldDefinition[] };
 export type PublicDocumentType = Omit<DocumentType, 'isActive'>;
@@ -105,14 +106,17 @@ export async function api<T>(path: string, init: RequestInit = {}): Promise<{ da
   return { data: payload as T, etag: response.headers.get('ETag') };
 }
 
-export const getMe = () => api<{ staff: Staff; csrfToken: string }>('/staff/auth/me');
-export const login = (username: string, password: string) => api<{ staff: Staff; csrfToken: string; expiresAt: string }>('/staff/auth/login', { method: 'POST', body: JSON.stringify({ username, password }) });
+export const getMe = () => api<{ staff: StaffSessionIdentity; csrfToken: string }>('/staff/auth/me');
+export const login = (username: string, password: string) => api<{ staff: StaffAccount; csrfToken: string; expiresAt: string }>('/staff/auth/login', { method: 'POST', body: JSON.stringify({ username, password }) });
 export const logout = () => api<{ status: string }>('/staff/auth/logout', { method: 'POST', body: '{}' });
 export const changePassword = (currentPassword: string, newPassword: string) => api<{ status: string; mustChangePassword: false }>('/staff/auth/password', { method: 'PATCH', body: JSON.stringify({ currentPassword, newPassword }) });
 export const getSummary = () => api<Summary>('/staff/summary');
 export const getQueue = (filters: { status?: string; documentTypeId?: string; releaseDateFrom?: string; releaseDateTo?: string; overdue?: boolean; search?: string; cursor?: string; limit?: number }) => {
   const { search, ...rest } = filters;
-  if (search?.trim()) return api<Page<QueueItem>>('/staff/requests/search', { method: 'POST', body: JSON.stringify({ ...rest, search: search.trim() }) });
+  if (search?.trim()) {
+    const searchFilters = Object.fromEntries(Object.entries(rest).filter(([, value]) => value !== undefined && value !== ''));
+    return api<Page<QueueItem>>('/staff/requests/search', { method: 'POST', body: JSON.stringify({ ...searchFilters, search: search.trim() }) });
+  }
   const query = new URLSearchParams();
   for (const [key, value] of Object.entries(rest)) if (value !== undefined && value !== '') query.set(key, String(value));
   return api<Page<QueueItem>>(`/staff/requests${query.size ? `?${query}` : ''}`);
@@ -125,8 +129,8 @@ export const getPublicCatalog = () => api<PublicDocumentType[]>('/document-types
 export const createDocumentType = (body: unknown) => api<DocumentType>('/staff/document-types', { method: 'POST', body: JSON.stringify(body) });
 export const updateDocumentType = (id: string, body: unknown) => api<DocumentType>(`/staff/document-types/${id}`, { method: 'PATCH', body: JSON.stringify(body) });
 export const setDocumentActive = (id: string, active: boolean) => api(`/staff/document-types/${id}/${active ? 'activate' : 'deactivate'}`, { method: 'POST', body: '{}' });
-export const getStaffUsers = () => api<Staff[]>('/staff/users');
-export const createStaffUser = (body: unknown) => api<{ staff: Staff; temporaryPassword: string }>('/staff/users', { method: 'POST', body: JSON.stringify(body) });
-export const updateStaffUser = (id: string, body: unknown) => api<Staff>(`/staff/users/${id}`, { method: 'PATCH', body: JSON.stringify(body) });
+export const getStaffUsers = () => api<StaffAccount[]>('/staff/users');
+export const createStaffUser = (body: unknown) => api<{ staff: StaffAccount; temporaryPassword: string }>('/staff/users', { method: 'POST', body: JSON.stringify(body) });
+export const updateStaffUser = (id: string, body: unknown) => api<StaffAccount>(`/staff/users/${id}`, { method: 'PATCH', body: JSON.stringify(body) });
 export const resetStaffPassword = (id: string) => api<{ staffId: string; temporaryPassword: string; mustChangePassword: true }>(`/staff/users/${id}/reset-password`, { method: 'POST', body: '{}' });
 export const getAuditEvents = (cursor?: string) => api<Page<AuditEvent>>(`/staff/audit-events?limit=30${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ''}`);

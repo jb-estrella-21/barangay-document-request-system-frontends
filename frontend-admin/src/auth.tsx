@@ -1,9 +1,9 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
-import { ApiError, changePassword as changePasswordApi, getMe, login as loginApi, logout as logoutApi, setCsrfToken, type Staff } from './api';
+import { ApiError, changePassword as changePasswordApi, getMe, login as loginApi, logout as logoutApi, setCsrfToken, type StaffSessionIdentity } from './api';
 
 export type AuthStatus = 'loading' | 'authenticated' | 'anonymous' | 'unavailable';
 type AuthValue = {
-  staff: Staff | null;
+  staff: StaffSessionIdentity | null;
   status: AuthStatus;
   restoreError: unknown;
   logoutError: unknown;
@@ -16,7 +16,7 @@ type AuthValue = {
 const AuthContext = createContext<AuthValue | null>(null);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [staff, setStaff] = useState<Staff | null>(null);
+  const [staff, setStaff] = useState<StaffSessionIdentity | null>(null);
   const [status, setStatus] = useState<AuthStatus>('loading');
   const [restoreError, setRestoreError] = useState<unknown>(null);
   const [logoutError, setLogoutError] = useState<unknown>(null);
