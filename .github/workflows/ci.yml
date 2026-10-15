@@ -116,10 +116,11 @@ jobs:
       - name: Create and verify disposable API and browser databases
         run: |
           set -euo pipefail
-          psql "$POSTGRES_ADMIN_URL" -v ON_ERROR_STOP=1 -c "CREATE DATABASE $API_TEST_DATABASE_NAME"
-          psql "$POSTGRES_ADMIN_URL" -v ON_ERROR_STOP=1 -c "CREATE DATABASE $BROWSER_TEST_DATABASE_NAME"
-          actual_api_name="$(psql "$API_TEST_DATABASE_URL" -Atc 'SELECT current_database()')"
-          actual_browser_name="$(psql "$BROWSER_TEST_DATABASE_URL" -Atc 'SELECT current_database()')"
+          # Prisma needs ?schema=public; libpq tools such as psql do not accept it.
+          psql "${POSTGRES_ADMIN_URL%%\?*}" -v ON_ERROR_STOP=1 -c "CREATE DATABASE $API_TEST_DATABASE_NAME"
+          psql "${POSTGRES_ADMIN_URL%%\?*}" -v ON_ERROR_STOP=1 -c "CREATE DATABASE $BROWSER_TEST_DATABASE_NAME"
+          actual_api_name="$(psql "${API_TEST_DATABASE_URL%%\?*}" -Atc 'SELECT current_database()')"
+          actual_browser_name="$(psql "${BROWSER_TEST_DATABASE_URL%%\?*}" -Atc 'SELECT current_database()')"
           if [ "$actual_api_name" != "$API_TEST_DATABASE_NAME" ] || [ "$actual_browser_name" != "$BROWSER_TEST_DATABASE_NAME" ]; then
             echo "Database identity check failed for a disposable test target." >&2
             exit 1
@@ -147,7 +148,7 @@ jobs:
           DATABASE_URL: ${{ env.BROWSER_TEST_DATABASE_URL }}
         run: |
           set -euo pipefail
-          actual_name="$(psql "$DATABASE_URL" -Atc 'SELECT current_database()')"
+          actual_name="$(psql "${DATABASE_URL%%\?*}" -Atc 'SELECT current_database()')"
           if [ "$actual_name" != "$BROWSER_TEST_DATABASE_NAME" ]; then
             echo "Browser database identity check failed; refusing migrations." >&2
             exit 1
