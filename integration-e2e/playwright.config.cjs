@@ -3,7 +3,10 @@ const { spawnSync } = require('node:child_process');
 const { defineConfig } = require('@playwright/test');
 
 const repositoryRoot = path.resolve(__dirname, '..');
-const backendDirectory = process.env.PHASE2_BACKEND_DIR || path.resolve(repositoryRoot, '..', 'barangay-document-request-system-backend');
+// CI invokes Playwright from integration-e2e but checks the backend out at the workspace root.
+const backendDirectory = process.env.PHASE2_BACKEND_DIR
+  ? path.resolve(repositoryRoot, process.env.PHASE2_BACKEND_DIR)
+  : path.resolve(repositoryRoot, '..', 'barangay-document-request-system-backend');
 const databaseUrl = process.env.PHASE2_TEST_DATABASE_URL;
 const expectedDatabaseName = process.env.PHASE2_TEST_DATABASE_NAME;
 const confirmation = process.env.PHASE2_CONFIRM_TEST_DATABASE;
