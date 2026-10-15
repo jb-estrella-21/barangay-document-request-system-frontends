@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState, useSyncExternalStore } from 'react';
+import React, { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { QueryClient, QueryClientProvider, useQuery } from '@tanstack/react-query';
 import { BrowserRouter, Link, NavLink, Route, Routes, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { type FieldPath, type Resolver, useForm } from 'react-hook-form';
@@ -24,19 +24,27 @@ function App() {
 
 function SiteShell() {
   const { t } = useTranslation();
+  const location = useLocation();
+  const previousPath = useRef(location.pathname);
+  useEffect(() => {
+    if (previousPath.current === location.pathname) return;
+    previousPath.current = location.pathname;
+    document.getElementById('main-content')?.focus();
+  }, [location.pathname]);
   const toggleLanguage = () => { void i18n.changeLanguage(i18n.language.startsWith('fil') ? 'en' : 'fil'); };
   return <div className="site-frame">
+    <a className="skip-link" href="#main-content">{t('skipToMain')}</a>
     <header className="site-header">
-      <Link className="brand" to="/" aria-label={t('homeLink')}>
+      <Link className="brand" to="/">
         <span className="brand-mark" aria-hidden="true">B</span>
         <span><strong>{t('brand')}</strong><small>{t('tagline')}</small></span>
       </Link>
-      <nav className="main-nav" aria-label="Main navigation">
+      <nav className="main-nav" aria-label={t('mainNavigation')}>
         <NavLink to="/" end>{t('navHome')}</NavLink><NavLink to="/documents">{t('navDocuments')}</NavLink><NavLink to="/track">{t('navTrack')}</NavLink>
       </nav>
-      <button className="language-button" type="button" onClick={toggleLanguage} aria-label={`${t('languageName')}: ${t('language')}`}><span aria-hidden="true">文</span>{t('language')}</button>
+      <button className="language-button" type="button" onClick={toggleLanguage}><span className="visually-hidden">{t('switchLanguage')}: </span><span aria-hidden="true">文</span>{t('language')}</button>
     </header>
-    <main id="main-content"><Routes>
+    <main id="main-content" tabIndex={-1}><Routes>
       <Route path="/" element={<HomePage />} /><Route path="/documents" element={<CatalogPage />} /><Route path="/documents/:slug" element={<DocumentPage />} />
       <Route path="/request/:slug" element={<RequestPage />} /><Route path="/request/submitted" element={<ConfirmationPage />} />
       <Route path="/track" element={<TrackPage />} /><Route path="/track/result" element={<TrackResultPage />} /><Route path="*" element={<NotFoundPage />} />
@@ -54,7 +62,7 @@ function HomePage() {
     <section className="hero-wrap">
       <div className="hero-copy"><div className="eyebrow"><span />{t('eyebrow')}</div><h1>{t('heroTitle')}</h1><p className="hero-lede">{t('heroText')}</p>
         <div className="hero-actions"><Link className="button button-primary" to="/documents">{t('browse')} <span aria-hidden="true">→</span></Link><Link className="button button-outline" to="/track">{t('track')}</Link></div>
-        <div className="catalog-count" role={catalog.isError ? 'alert' : undefined}>{catalog.isLoading ? t('loading') : catalog.isError ? apiErrorMessage(catalog.error, t, 'loadError') : catalog.data ? `${catalog.data.length} ${i18n.language.startsWith('fil') ? 'uri ng dokumento' : 'document types available'}` : ''}</div>
+        <div className="catalog-count" role={catalog.isError ? 'alert' : undefined}>{catalog.isLoading ? t('loading') : catalog.isError ? apiErrorMessage(catalog.error, t, 'loadError') : catalog.data ? t('documentCount', { count: catalog.data.length }) : ''}</div>
       </div>
       <div className="hero-art" aria-hidden="true"><div className="paper paper-back"><i /><i /><i /></div><div className="paper paper-front"><span className="seal">B</span><div className="paper-lines"><i /><i /><i /><i /></div><div className="paper-stamp">BARANGAY<br />DOCUMENT</div></div><div className="hero-orbit orbit-one" /><div className="hero-orbit orbit-two" /><div className="leaf leaf-one" /><div className="leaf leaf-two" /></div>
     </section>
@@ -316,7 +324,7 @@ function TrackResultPage() {
       <div className="status-banner"><span className={`status-dot status-${request.status.toLowerCase()}`} /><div><span>{t('status')}</span><strong>{t(`status_${request.status}`)}</strong></div></div>
       {request.statusMessage && <div className="public-message"><span>{t('statusMessage')}</span><p>{request.statusMessage}</p></div>}
       <dl className="tracking-dates"><div><dt>{t('submittedOn')}</dt><dd>{formatManilaDateTime(request.submittedAt, locale)}</dd></div>
-        <div><dt>{t('expectedDate')}</dt><dd>{request.expectedReleaseDate ? formatManilaDate(request.expectedReleaseDate, locale) : t('noDate')}</dd><small>{t('expectedHelp')}</small></div>
+        <div><dt>{t('expectedDate')}</dt><dd>{request.expectedReleaseDate ? formatManilaDate(request.expectedReleaseDate, locale) : t('noDate')}<small>{t('expectedHelp')}</small></dd></div>
         <div><dt>{t('readyAt')}</dt><dd>{request.readyAt ? formatManilaDateTime(request.readyAt, locale) : t('notReady')}</dd></div>
         <div><dt>{t('releasedAt')}</dt><dd>{request.releasedAt ? formatManilaDateTime(request.releasedAt, locale) : t('notReleased')}</dd></div></dl>
       <p className="muted small-text">{t('progressPrivate')}</p>

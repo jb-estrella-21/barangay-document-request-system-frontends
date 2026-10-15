@@ -7,3 +7,44 @@
 @media(max-width:440px) { .topbar-actions { gap:6px; }.role-chip { display:none; }.metric-grid { gap:8px; }.metric-card { grid-template-columns:34px 1fr; column-gap:8px; padding:12px; }.metric-icon { width:32px; height:32px; }.metric-card strong { font-size:20px; }.filter-grid { grid-template-columns:1fr; }.filter-grid .form-field:first-child { grid-column:auto; }.filter-actions { align-items:flex-start; flex-direction:column; gap:10px; }.filter-actions>div { width:100%; }.filter-actions .button { flex:1; }.info-grid { gap:14px; }.login-card { padding:28px 23px; }.secret-panel { align-items:flex-start; flex-wrap:wrap; }.secret-panel>div { flex:1 1 100%; }.field-editor-grid { grid-template-columns:1fr; gap:0; }.field-required { min-height:25px; }.audit-event summary { gap:8px; padding:13px 11px; }.audit-target { max-width:90px; text-align:right; overflow-wrap:anywhere; } }
 @media(prefers-reduced-motion:reduce) { *,*::before,*::after { animation-duration:.01ms!important; transition-duration:.01ms!important; scroll-behavior:auto!important; } }
 .session-unavailable { max-width: 440px; padding: 26px; border: 1px solid #eed3d0; border-radius: 9px; color: #8e3d38; background: #fff7f5; text-align: center; line-height: 1.6; }.session-unavailable .button { margin-top: 10px; }
+
+.skip-link { position: fixed; z-index: 20; top: 8px; left: 8px; display: inline-flex; min-height: 44px; align-items: center; padding: 9px 14px; border: 2px solid var(--deep); border-radius: 6px; color: var(--deep); background: #fffefa; font-size: 14px; font-weight: 700; transform: translateY(-160%); }
+.skip-link:focus { transform: translateY(0); }
+#main-content:focus-visible { outline: 3px solid #d6a74f; outline-offset: -3px; }
+.language-button,.side-nav a,.button,.icon-button,.row-action,.remove-button,.link-button { min-height: 44px; }
+.language-button { padding: 8px 13px; font-size: 12px; }
+.side-nav a { height: auto; padding: 7px 11px; font-size: 12px; }
+.icon-button { width: 44px; height: 44px; }
+.row-action { display: inline-flex; align-items: center; padding: 7px 8px; font-size: 12px; }
+.link-button { display: inline-flex; align-items: center; padding: 7px 5px; font-size: 12px; }
+.catalog-actions .button,.fields-head .button,.table-footer .button { min-height: 44px; padding-inline: 12px; font-size: 12px; }
+.form-field input,.form-field textarea,.form-field select,.table-select { min-height: 44px; font-size: 14px; }
+.check-control { min-height: 44px; font-size: 12px; }
+th { color: #526157; font-size: 11px; }
+td { color: #36483e; font-size: 12px; }
+td small,.metric-card small,.dashboard-callout p,.catalog-main p,.catalog-main small,.fields-head p,.secret-panel p,.audit-summary small,.audit-target,.audit-details span,.info-block span,.history-head time,.history-content small,.history-content p,.login-card > p,.login-foot { color: #526157; font-size: 12px; }
+.metric-label,.status-pill,.status-tag,.audit-summary strong,.info-block strong,.history-head strong { font-size: 12px; }
+.status-tag.tag-gray { color: #46564c; }
+.status-pill.status-under_review { color: #755314; }
+.status-pill.status-processing { color: #28596b; }
+.status-pill.status-ready_for_pickup,.status-pill.status-released { color: #1b5b3d; }
+.status-pill.status-rejected,.status-pill.status-cancelled { color: #81342f; }
+.catalog-main p,.dashboard-callout p { line-height: 1.6; }
+.audit-details pre { font-size: 11px; }
+.remove-button { padding: 6px 10px; font-size: 12px; }
+.login-foot { color: #526157; }
+
+.admin-brand small,.nav-label,.staff-meta small,.page-title > p { color: #526157; font-size: 12px; }
+
+.loading-state,.empty-state { color: #526157; font-size: 13px; }
+
+.table-footer { color: #526157; font-size: 12px; }
+
+.page-title p,.panel-title > span,.form-field small { color: #526157; font-size: 12px; }
+
+.check-control input { width: 24px; min-width: 24px; height: 24px; flex: 0 0 24px; }
+
+.check-control { min-height: 44px; padding-block: 10px; gap: 12px; }
+.field-required { min-height: 44px; padding: 0; }
+.field-editor { padding-bottom: 14px; }
+.remove-button { position: static; display: inline-flex; align-items: center; margin-top: 6px; }

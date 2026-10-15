@@ -4,6 +4,7 @@ import { initReactI18next } from 'react-i18next';
 const resources = {
   en: { translation: {
     brand: 'Barangay Document Services', tagline: 'A clear path to the documents you need.',
+    documentTitle: 'Barangay Document Services', documentDescription: 'Request and track barangay documents online.',
     navHome: 'Home', navDocuments: 'Documents', navTrack: 'Track a request', language: 'Filipino',
     eyebrow: 'Resident services', heroTitle: 'Request a barangay document, simply.', heroText: 'Browse available documents, send a request without creating an account, and check its progress when you have your reference and private tracking credential.',
     browse: 'Browse documents', track: 'Track a request', homeStep1: 'Choose a document', homeStep1Text: 'Review the requirements and information needed.', homeStep2: 'Send your request', homeStep2Text: 'Complete the form. No resident account is needed.', homeStep3: 'Save your details', homeStep3Text: 'Keep your reference and private tracking credential together.',
@@ -28,9 +29,12 @@ const resources = {
     nameMin: 'Enter at least 2 characters.', nameMax: 'Use 160 characters or fewer.', contactInvalid: 'Enter a valid contact number.', addressInvalid: 'Enter an address of at least 3 characters.',
     dynamicRequired: '{{label}} is required.', dynamicMax: '{{label}} must be 1,000 characters or fewer.', dynamicDate: 'Enter a valid date for {{label}}.', dynamicOption: 'Choose one of the listed options for {{label}}.',
     referenceInvalid: 'Enter a valid request reference.', credentialInvalid: 'Enter your private tracking credential.',
+    skipToMain: 'Skip to main content', mainNavigation: 'Main navigation', switchLanguage: 'Change language',
+    documentCount_one: '{{count}} document type available', documentCount_other: '{{count}} document types available',
   } },
   fil: { translation: {
     brand: 'Mga Dokumento ng Barangay', tagline: 'Maayos na paraan para makuha ang dokumentong kailangan mo.',
+    documentTitle: 'Mga Dokumento ng Barangay', documentDescription: 'Humiling at sumubaybay ng mga dokumento ng barangay online.',
     navHome: 'Tahanan', navDocuments: 'Mga dokumento', navTrack: 'Subaybayan ang kahilingan', language: 'English',
     eyebrow: 'Serbisyo para sa residente', heroTitle: 'Humiling ng dokumento ng barangay nang madali.', heroText: 'Tingnan ang mga dokumentong maaaring hilingin, magsumite nang walang account, at alamin ang progreso gamit ang iyong reference at pribadong tracking credential.',
     browse: 'Tingnan ang mga dokumento', track: 'Subaybayan ang kahilingan', homeStep1: 'Pumili ng dokumento', homeStep1Text: 'Basahin ang mga kailangan at impormasyong hinihingi.', homeStep2: 'Ipadala ang kahilingan', homeStep2Text: 'Punan ang form. Hindi kailangan ng resident account.', homeStep3: 'Itago ang mga detalye', homeStep3Text: 'Pagsamahin at itago ang reference at pribadong tracking credential.',
@@ -55,15 +59,36 @@ const resources = {
     nameMin: 'Maglagay ng hindi bababa sa 2 karakter.', nameMax: 'Gumamit ng hanggang 160 karakter.', contactInvalid: 'Maglagay ng wastong numero ng telepono.', addressInvalid: 'Maglagay ng tirahang may hindi bababa sa 3 karakter.',
     dynamicRequired: 'Kailangan ang {{label}}.', dynamicMax: 'Dapat hindi hihigit sa 1,000 karakter ang {{label}}.', dynamicDate: 'Maglagay ng wastong petsa para sa {{label}}.', dynamicOption: 'Pumili ng opsyon mula sa listahan para sa {{label}}.',
     referenceInvalid: 'Maglagay ng wastong reference ng kahilingan.', credentialInvalid: 'Ilagay ang iyong pribadong tracking credential.',
+    skipToMain: 'Lumaktaw sa pangunahing nilalaman', mainNavigation: 'Pangunahing nabigasyon', switchLanguage: 'Palitan ang wika',
+    documentCount_one: '{{count}} uri ng dokumento', documentCount_other: '{{count}} uri ng dokumento',
   } },
 } as const;
 
+export const languageStorageKey = 'barangay-ui-language-v1';
+
+function getStorage(): Pick<Storage, 'getItem' | 'setItem'> | null {
+  try { return window.localStorage; } catch { return null; }
+}
+
+export function getInitialLanguage(storage: Pick<Storage, 'getItem'> | null = getStorage()): 'en' | 'fil' {
+  try { return storage?.getItem(languageStorageKey) === 'fil' ? 'fil' : 'en'; } catch { return 'en'; }
+}
+
+function syncDocumentLanguage(language: string, persist = false) {
+  const supported = language.startsWith('fil') ? 'fil' : 'en';
+  document.documentElement.lang = supported;
+  document.title = String(i18n.t('documentTitle', { lng: supported }));
+  document.querySelector('meta[name="description"]')?.setAttribute('content', String(i18n.t('documentDescription', { lng: supported })));
+  if (persist) { try { getStorage()?.setItem(languageStorageKey, supported); } catch { /* Storage can be unavailable in private browsing. */ } }
+}
+
 void i18n.use(initReactI18next).init({
   resources,
-  lng: 'en',
+  lng: getInitialLanguage(),
   fallbackLng: 'en',
   interpolation: { escapeValue: false },
 });
-i18n.on('languageChanged', (language) => { document.documentElement.lang = language.startsWith('fil') ? 'fil' : 'en'; });
+i18n.on('languageChanged', (language) => syncDocumentLanguage(language, true));
+syncDocumentLanguage(i18n.language);
 
 export default i18n;
