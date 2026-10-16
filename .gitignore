@@ -9,6 +9,10 @@ coverage/
 .env
 .env.*
 !.env.example
+!.env.production.example
+
+# Wrangler local state and account/project caches
+.wrangler/
 
 # Playwright artifacts
 playwright-report/

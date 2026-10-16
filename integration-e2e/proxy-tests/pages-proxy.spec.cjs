@@ -12,6 +12,9 @@ async function upstreamCount(request) {
 
 test('resident Pages site serves SPA routes and static assets without invoking its API Function', async ({ page, request }) => {
   const before = await upstreamCount(request);
+  const htmlResponse = await request.get(residentOrigin);
+  expect(htmlResponse.headers()['content-security-policy']).toContain("default-src 'self'");
+  expect(htmlResponse.headers()['content-security-policy']).toContain("frame-ancestors 'none'");
   await page.goto(`${residentOrigin}/track/result`);
   await expect(page.locator('#root')).toBeVisible();
   await page.reload();
@@ -31,6 +34,8 @@ test('staff Pages project serves direct SPA routes and static assets without inv
   const routeResponse = await request.get(`${staffOrigin}/requests`);
   expect(routeResponse.ok()).toBeTruthy();
   expect(routeResponse.headers()['content-type']).toContain('text/html');
+  expect(routeResponse.headers()['content-security-policy']).toContain("default-src 'self'");
+  expect(routeResponse.headers()['content-security-policy']).toContain("frame-ancestors 'none'");
   expect(await routeResponse.text()).toContain('id="root"');
   const html = await request.get(`${staffOrigin}/`);
   const assetPath = (await html.text()).match(/<script[^>]+src="([^"]+)"/)?.[1];

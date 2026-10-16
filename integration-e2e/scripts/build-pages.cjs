@@ -5,6 +5,7 @@ const { spawnSync } = require('node:child_process');
 
 const repositoryRoot = path.resolve(__dirname, '../..');
 const integrationRoot = path.resolve(__dirname, '..');
+const validatePagesConfig = require(path.join(repositoryRoot, 'scripts/validate-pages-config.cjs'));
 const stageRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'barangay-phase5b-pages-'));
 const wrangler = path.join(integrationRoot, 'node_modules/.bin/wrangler');
 const wranglerEnv = {
@@ -12,8 +13,8 @@ const wranglerEnv = {
   XDG_CONFIG_HOME: process.env.XDG_CONFIG_HOME || path.join(os.tmpdir(), 'barangay-cf-config'),
 };
 const projects = [
-  { app: 'frontend-website', stage: 'resident', config: 'wrangler.resident.jsonc' },
-  { app: 'frontend-admin', stage: 'staff', config: 'wrangler.staff.jsonc' },
+  { app: 'frontend-website', stage: 'resident', config: 'wrangler.resident.jsonc', projectName: 'barangay-document-resident' },
+  { app: 'frontend-admin', stage: 'staff', config: 'wrangler.staff.jsonc', projectName: 'barangay-document-staff' },
 ];
 
 function run(command, args, cwd, env = process.env) {
@@ -25,6 +26,8 @@ function run(command, args, cwd, env = process.env) {
 
 try {
   for (const project of projects) {
+    const configPath = path.join(repositoryRoot, project.config);
+    validatePagesConfig(JSON.parse(fs.readFileSync(configPath, 'utf8')), project.projectName);
     const appRoot = path.join(repositoryRoot, project.app);
     const buildEnv = { ...process.env, VITE_API_BASE_URL: '/api/v1' };
     if (!run('npm', ['run', 'build'], appRoot, buildEnv)) break;
@@ -43,7 +46,7 @@ try {
     fs.mkdirSync(stage, { recursive: true });
     fs.cpSync(output, path.join(stage, 'dist'), { recursive: true });
     fs.cpSync(path.join(repositoryRoot, 'functions'), path.join(stage, 'functions'), { recursive: true });
-    fs.copyFileSync(path.join(repositoryRoot, project.config), path.join(stage, 'wrangler.jsonc'));
+    fs.copyFileSync(configPath, path.join(stage, 'wrangler.jsonc'));
 
     const bundle = path.join(stageRoot, `${project.stage}-functions.bundle.js`);
     const generatedRoutes = path.join(stageRoot, `${project.stage}-routes.json`);

@@ -3,7 +3,6 @@ set -euo pipefail
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$repo_root"
-export XDG_CONFIG_HOME="${XDG_CONFIG_HOME:-${TMPDIR:-/tmp}/barangay-cf-config}"
 
 usage() {
   echo "Usage: scripts/pages.sh check|deploy resident|staff" >&2
@@ -14,14 +13,45 @@ usage() {
 action="$1"
 app="$2"
 case "$app" in
-  resident) app_dir="frontend-website"; config="wrangler.resident.jsonc" ;;
-  staff) app_dir="frontend-admin"; config="wrangler.staff.jsonc" ;;
+  resident) app_dir="frontend-website"; config="wrangler.resident.jsonc"; expected_project="barangay-document-resident" ;;
+  staff) app_dir="frontend-admin"; config="wrangler.staff.jsonc"; expected_project="barangay-document-staff" ;;
   *) usage ;;
 esac
 [[ "$action" == "check" || "$action" == "deploy" ]] || usage
 
+if [[ "$action" == "check" ]]; then
+  export XDG_CONFIG_HOME="${XDG_CONFIG_HOME:-${TMPDIR:-/tmp}/barangay-cf-config}"
+fi
+
 wrangler="$repo_root/integration-e2e/node_modules/.bin/wrangler"
 [[ -x "$wrangler" ]] || { echo "Install integration-e2e dependencies first (npm ci)." >&2; exit 1; }
+
+node scripts/validate-pages-config.cjs "$config" "$expected_project"
+
+project_name="$expected_project"
+if [[ "$action" == "deploy" ]]; then
+  [[ "${PAGES_DEPLOY_APPROVED:-}" == "YES" ]] || {
+    echo "Remote deployment blocked. Set PAGES_DEPLOY_APPROVED=YES only for an intentional deployment." >&2
+    exit 3
+  }
+  [[ "${PAGES_DEPLOY_PROJECT:-}" == "$project_name" ]] || {
+    echo "Set PAGES_DEPLOY_PROJECT to the exact selected Pages project before deployment." >&2
+    exit 3
+  }
+  [[ -n "${PAGES_PRODUCTION_BRANCH:-}" && "${PAGES_PRODUCTION_BRANCH}" =~ ^[A-Za-z0-9][A-Za-z0-9._/-]{0,99}$ && "${PAGES_PRODUCTION_BRANCH}" != *..* ]] || {
+    echo "Set PAGES_PRODUCTION_BRANCH to the verified production branch name." >&2
+    exit 3
+  }
+  secret_names="$("$wrangler" pages secret list --project-name "$project_name" 2>/dev/null)" || {
+    echo "Could not verify the Pages secret binding. Authenticate Wrangler and retry." >&2
+    exit 3
+  }
+  if [[ "$secret_names" != *CLIENT_IP_HMAC_SECRET* ]]; then
+    echo "CLIENT_IP_HMAC_SECRET is not listed for the selected Pages project; refusing deployment." >&2
+    exit 3
+  fi
+  unset secret_names
+fi
 
 VITE_API_BASE_URL=/api/v1 npm --prefix "$app_dir" run build
 node - "$app_dir/dist" <<'NODE'
@@ -52,14 +82,9 @@ cp "$config" "$stage_dir/wrangler.jsonc"
 [[ -s "$tmp_dir/functions.js" ]] || { echo "Wrangler did not produce a Functions bundle." >&2; exit 1; }
 
 if [[ "$action" == "deploy" ]]; then
-  [[ "${PHASE5C_DEPLOY_APPROVED:-}" == "YES" ]] || {
-    echo "Remote deploy blocked. Phase 5C requires explicit approval and PHASE5C_DEPLOY_APPROVED=YES." >&2
-    exit 3
-  }
-  project_name="$(node -e 'process.stdout.write(JSON.parse(require("node:fs").readFileSync(process.argv[1], "utf8")).name)' "$config")"
   (
     cd "$stage_dir"
-    "$wrangler" pages deploy dist --project-name "$project_name"
+    "$wrangler" pages deploy dist --project-name "$project_name" --branch "$PAGES_PRODUCTION_BRANCH"
   )
   exit $?
 fi

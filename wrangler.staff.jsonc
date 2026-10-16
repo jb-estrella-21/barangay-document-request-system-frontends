@@ -1,5 +1,15 @@
 {
-  "name": "barangay-document-request-staff",
+  "name": "barangay-document-staff",
   "pages_build_output_dir": "./dist",
-  "compatibility_date": "2026-10-15"
+  "compatibility_date": "2026-10-15",
+  "vars": {
+    "API_ORIGIN": "https://barangay-document-request-system-backend.onrender.com"
+  },
+  "env": {
+    "production": {
+      "vars": {
+        "API_ORIGIN": "https://barangay-document-request-system-backend.onrender.com"
+      }
+    }
+  }
 }
